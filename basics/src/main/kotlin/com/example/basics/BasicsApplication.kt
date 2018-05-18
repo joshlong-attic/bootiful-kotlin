@@ -77,7 +77,7 @@ class ExposedCustomerService(private val tt: TransactionTemplate) : CustomerServ
 
 	override fun insert(c: Customer) {
 		Customers.insert {
-			it[Customers.name] = c.name
+			it[Customers.name] = c.name!!
 		}
 	}
 }
