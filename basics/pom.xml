@@ -103,7 +103,13 @@
         </plugins>
     </build>
 
-    <repositories>
+<repositories>
+  <repository>
+    <id>exposed</id>
+    <name>exposed</name>
+    <url>https://dl.bintray.com/kotlin/exposed</url>
+  </repository>
+
         <repository>
             <id>spring-snapshots</id>
             <name>Spring Snapshots</name>
