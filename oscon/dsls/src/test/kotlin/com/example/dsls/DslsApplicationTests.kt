@@ -1,10 +1,10 @@
-package com.example.goko
+package com.example.dsls
 
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest
 
 @SpringBootTest
-class GokoApplicationTests {
+class DslsApplicationTests {
 
 	@Test
 	fun contextLoads() {
