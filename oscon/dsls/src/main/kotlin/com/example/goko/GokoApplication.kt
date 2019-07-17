@@ -1,75 +1,39 @@
 package com.example.goko
 
-import org.jetbrains.exposed.spring.SpringTransactionManager
-import org.jetbrains.exposed.sql.Table
-import org.jetbrains.exposed.sql.selectAll
 import org.springframework.boot.autoconfigure.SpringBootApplication
-import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.boot.runApplication
-import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.Profile
-import org.springframework.context.event.EventListener
-import org.springframework.jdbc.core.JdbcTemplate
-import org.springframework.stereotype.Component
-import org.springframework.stereotype.Service
-import org.springframework.transaction.PlatformTransactionManager
-import org.springframework.transaction.annotation.Transactional
-import org.springframework.transaction.support.TransactionTemplate
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.RestController
-import javax.sql.DataSource
-
-fun main(args: Array<String>) {
-	runApplication<GokoApplication>(*args)
-}
+import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder
+import org.springframework.cloud.gateway.route.builder.routes
+import org.springframework.context.support.beans
+import org.springframework.web.reactive.function.server.ServerResponse
+import org.springframework.web.reactive.function.server.body
+import org.springframework.web.reactive.function.server.router
+import reactor.core.publisher.Flux
 
 @SpringBootApplication
-class GokoApplication {
+class GokuApplication
 
-	@Bean
-	fun exposedTransactionManager(ds: DataSource) = SpringTransactionManager(ds)
-
-	@Bean
-	fun transactionTemplate(txm: PlatformTransactionManager) = TransactionTemplate(txm)
-}
-
-
-object Customers : Table() {
-	val id = long("id").autoIncrement().primaryKey()
-	val name = varchar("name", 255)
-}
-
-@Profile("exposed")
-@Service
-@Transactional
-class ExposedCustomerService : CustomerService {
-
-	override fun all(): Collection<Customer> = Customers
-			.selectAll()
-			.map { Customer(id = it[Customers.id], name = it[Customers.name]) }
-}
-
-
-@RestController
-class CustomerRestController(private val customerService: CustomerService) {
-
-	@GetMapping("/customers")
-	fun get() = this.customerService.all()
-
-}
-
-@Profile("jdbc")
-@Service
-class JdbcCustomerService(private val jdbcTemplate: JdbcTemplate) : CustomerService {
-
-	override fun all(): Collection<Customer> = this.jdbcTemplate.query("select * from CUSTOMERS") { rs, _ ->
-		Customer(id = rs.getLong("ID"), name = rs.getString("NAME"))
+fun main(args: Array<String>) {
+	runApplication<GokuApplication>(*args) {
+		val conf = beans {
+			bean {
+				router {
+					GET("/hello") {
+						val greeting = Flux.just("Hello ${it.pathVariable("name")}!")
+						ServerResponse.ok().body(greeting)
+					}
+				}
+			}
+			bean {
+				ref<RouteLocatorBuilder>().routes {
+					route {
+						host("*.spring.io") and path("/proxy")
+						uri("http://spring.io/guides")
+					}
+				}
+			}
+		}
+		addInitializers(conf)
 	}
 }
 
-
-interface CustomerService {
-	fun all(): Collection<Customer>
-}
-
-data class Customer(val id: Long? = null, val name: String)
