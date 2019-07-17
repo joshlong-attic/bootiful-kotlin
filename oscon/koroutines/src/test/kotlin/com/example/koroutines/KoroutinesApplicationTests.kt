@@ -1,10 +1,10 @@
-package com.example.goko
+package com.example.koroutines
 
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest
 
 @SpringBootTest
-class GokoApplicationTests {
+class KoroutinesApplicationTests {
 
 	@Test
 	fun contextLoads() {
