@@ -3,85 +3,84 @@ package com.example.basics
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.selectAll
-import org.springframework.boot.ApplicationArguments
-import org.springframework.boot.ApplicationRunner
 import org.springframework.boot.autoconfigure.SpringBootApplication
+import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.boot.runApplication
-import org.springframework.context.annotation.Profile
+import org.springframework.context.ApplicationListener
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.core.queryForObject
 import org.springframework.stereotype.Component
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
-//
-// https://github.com/JetBrains/Exposed/tree/master/exposed-spring-boot-starter
-//
 @SpringBootApplication
 class BasicsApplication
 
 fun main(args: Array<String>) {
-	runApplication<BasicsApplication>(*args)
+  runApplication<BasicsApplication>(*args)
 }
-
 
 @Component
-class Runner(private val customerService: CustomerService) : ApplicationRunner {
+class Runner(private val customerService: CustomerService)
+  : ApplicationListener<ApplicationReadyEvent> {
 
-	override fun run(args: ApplicationArguments) {
-		this.customerService
-				.findAll()
-				.forEach { println(this.customerService.findById(it.id)) }
-	}
+  override fun onApplicationEvent(are: ApplicationReadyEvent) {
+    customerService
+        .all()
+        .forEach {
+          val record = this.customerService.byId(it.id)!!
+          println("the customer id ${record.id} and the name is ${record.name}")
+        }
+  }
 }
 
-@Service
-//@Profile("exposed")
-@Transactional
-class ExposedCustomerService : CustomerService {
-
-	override fun findById(id: Long): Customer? =
-			Customers
-					.select { Customers.id.eq(id) }
-					.map { Customer(it[Customers.id], it[Customers.name]) }
-					.firstOrNull()
-
-	override fun findAll(): Collection<Customer> =
-			Customers
-					.selectAll()
-					.map { Customer(it[Customers.id], it[Customers.name]) }
-}
 
 object Customers : Table() {
 
-	val id = long("id").autoIncrement()
-	val name = varchar("name", 255)
+  val id = integer("id").autoIncrement()
+  val name = varchar("name", 255)
 
-	override val primaryKey = PrimaryKey(id)
+  override val primaryKey: PrimaryKey = PrimaryKey(this.id)
+
 }
 
 @Service
-@Profile("jdbc")
-class JdbcCustomerService(private val template: JdbcTemplate) : CustomerService {
+@Transactional
+class ExposedCustomerService : CustomerService {
 
-	override fun findById(id: Long): Customer? =
-			this.template
-					.queryForObject("select * from customers where id = ?", id) { resultSet, _ ->
-						Customer(resultSet.getLong("id"), resultSet.getString("name"))
-					}
+  override fun all(): Collection<Customer> =
+      Customers
+          .selectAll()
+          .map { Customer(it[Customers.id], it[Customers.name]) }
 
-	override fun findAll(): Collection<Customer> =
-			this.template
-					.query("select * from customers") { resultSet, _ ->
-						Customer(resultSet.getLong("id"), resultSet.getString("name"))
-					}
+  override fun byId(id: Int): Customer? =
+      Customers
+          .select { Customers.id.eq(id) }
+          .map { Customer(it[Customers.id], it[Customers.name]) }
+          .firstOrNull()
+
 }
 
+//@Service
+class JdbcCustomerService(private val jdbcTemplate: JdbcTemplate) : CustomerService {
+
+  override fun all(): Collection<Customer> =
+      this.jdbcTemplate.query("select * from CUSTOMERS") { rs, _ ->
+        Customer(rs.getInt("id"), rs.getString("name"))
+      }
+
+  override fun byId(id: Int): Customer? =
+      this.jdbcTemplate.queryForObject("select * from CUSTOMERS where id =? ", id) { resultSet, i ->
+        Customer(resultSet.getInt("id"), resultSet.getString("name"))
+      }
+
+}
+
+data class Customer(val id: Int, val name: String)
 
 interface CustomerService {
-	fun findById(id: Long): Customer?
-	fun findAll(): Collection<Customer>
+
+  fun all(): Collection<Customer>
+
+  fun byId(id: Int): Customer?
 }
-
-data class Customer(val id: Long, val name: String)
-
